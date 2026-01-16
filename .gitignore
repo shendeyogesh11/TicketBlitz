@@ -1,0 +1,12 @@
+# Frontend junk
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Backend junk
+backend/target/
+backend/.mvn/
+backend/*.class
+backend/.settings/
+backend/.classpath
+backend/.project
