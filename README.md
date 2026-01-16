@@ -464,13 +464,11 @@ Follow these steps to ensure everything is working correctly:
 <table>
   <tr>
     <td align="center">
-      <img src="https://via.placeholder.com/100" width="100px;" alt="Yogesh Shende"/><br />
       <sub><b>Yogesh Shende</b></sub><br />
       <sub>Full Stack Developer</sub><br />
       <sub>High-Concurrency Backend & High-Fidelity React UI</sub>
     </td>
     <td align="center">
-      <img src="https://via.placeholder.com/100" width="100px;" alt="Swapnil Patil"/><br />
       <sub><b>Swapnil Patil</b></sub><br />
       <sub>Full Stack Developer</sub><br />
       <sub>Designed UI & Backend Systems</sub>
