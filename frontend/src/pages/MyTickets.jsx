@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 
 /**
- * TOP 1% G SECURE WALLET:
  * Features Client-Side PDF Generation and a simulated Bank-to-Wallet Handshake.
  */
 const MyTickets = () => {

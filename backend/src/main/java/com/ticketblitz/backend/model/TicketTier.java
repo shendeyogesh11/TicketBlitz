@@ -10,7 +10,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * TOP 1% G INVENTORY ENTITY:
  * Represents a specific pricing tier for an event.
  */
 @Entity

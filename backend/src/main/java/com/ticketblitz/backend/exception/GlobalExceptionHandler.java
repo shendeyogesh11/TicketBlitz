@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Global Exception Handler for TicketBlitz.
  * Centralizes all error responses for the entire application.
  */
 @RestControllerAdvice

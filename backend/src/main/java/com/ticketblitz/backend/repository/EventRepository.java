@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 /**
- * TOP 1% G REPOSITORY:
  * Implements Join Fetching to prevent LazyInitializationException and Null ID errors.
  */
 public interface EventRepository extends JpaRepository<Event, Long> {

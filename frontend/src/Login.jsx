@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, ChevronRight, AlertCircle } from 'lucide-react';
 
 /**
- * TOP 1% G SECURE LOGIN BRIDGE:
  * Fixed to handle structured JSON error objects from Spring Boot without crashing.
  */
 export default function Login() {

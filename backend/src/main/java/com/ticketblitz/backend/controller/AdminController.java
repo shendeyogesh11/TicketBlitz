@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * TOP 1% G ADMIN ENGINE:
  * Orchestrates global system management, inventory synchronization,
  * and physical venue infrastructure.
  */

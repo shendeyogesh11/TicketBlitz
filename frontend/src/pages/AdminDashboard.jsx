@@ -12,7 +12,6 @@ import EventTable from '../components/EventTable';
 import VenueManager from '../components/VenueManager';
 
 /**
- * TOP 1% G ADMIN INTERFACE:
  * Orchestrates global system visibility, inventory synchronization,
  * physical venue management, and partner proposal vetting.
  */

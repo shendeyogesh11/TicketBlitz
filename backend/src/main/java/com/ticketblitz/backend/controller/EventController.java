@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * TOP 1% G SYNC ORCHESTRATOR:
  * Manages the final handshake between Persistent DB state and the Redis Cache.
  */
 @RestController
@@ -106,7 +105,6 @@ public class EventController {
     }
 
     /**
-     * TOP 1% G DELETE LOGIC:
      * Coordinated purge of orders and stock keys.
      */
     @DeleteMapping("/{id}")

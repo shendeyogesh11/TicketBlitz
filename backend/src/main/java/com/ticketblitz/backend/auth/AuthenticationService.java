@@ -11,7 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
- * TOP 1% G AUTHENTICATION SERVICE:
  * Manages secure user lifecycle and synchronizes full identity payloads.
  */
 @Service

@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 
 /**
- * TOP 1% G INFRASTRUCTURE MANAGER:
  * Orchestrates the registration and patching of physical venues.
  */
 const VenueManager = ({ venues, onRefresh }) => {

@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Image as ImageIcon, Link as LinkIcon, Plus, Trash2, MapPin, Ticket, Clock } from 'lucide-react';
 
-/**
- * TOP 1% G EVENT ARCHITECT:
- * Orchestrates event creation and updates using prop-driven venue data.
- */
+
 function AdminEventForm({ onClose, refreshData, initialData, venues }) {
     
-    // 1. DYNAMIC INITIALIZATION: Now includes eventTime and venue mapping
     const [eventData, setEventData] = useState(initialData || {
         title: "",
         description: "",
@@ -22,7 +18,7 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
         ]
     });
 
-    // 2. DROPDOWN SYNCHRONIZATION: Ensures a default venue is selected in "Create" mode
+    
     useEffect(() => {
         if (!initialData && venues && venues.length > 0 && !eventData.venue.id) {
             setEventData(prev => ({ ...prev, venue: { id: venues[0].id } }));

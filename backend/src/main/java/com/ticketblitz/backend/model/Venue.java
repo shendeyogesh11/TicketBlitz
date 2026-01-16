@@ -10,7 +10,6 @@ import lombok.Builder;
 import java.util.List;
 
 /**
- * TOP 1% G INFRASTRUCTURE ENTITY:
  * Represents the physical source of truth for event locations.
  */
 @Entity

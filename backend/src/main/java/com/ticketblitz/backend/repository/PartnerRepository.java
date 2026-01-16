@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 /**
- * TOP 1% G DATA BRIDGE:
  * Handles automated persistence for all incoming partner applications.
  */
 @Repository

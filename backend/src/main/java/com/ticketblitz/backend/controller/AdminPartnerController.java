@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * TOP 1% G ADMIN PARTNER ENGINE:
  * Manages the vetting and status orchestration of global event proposals.
  */
 @RestController

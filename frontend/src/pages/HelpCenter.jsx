@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, Mail, FileText, Check } from 'lucide-react';
 
 /**
- * TOP 1% G KNOWLEDGE INFRASTRUCTURE:
  * Weaponized with a real-time search engine and identity-aware support bridge.
  */
 export default function HelpCenter() {

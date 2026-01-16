@@ -13,7 +13,6 @@ import PartnerWithUs from "./pages/PartnerWithUs";
 import HelpCenter from "./pages/HelpCenter";
 
 /**
- * TOP 1% G APPLICATION CORE:
  * The 'Glue' that synchronizes Global Discovery State and Secure Route Guards.
  */
 function App() {
@@ -22,7 +21,6 @@ function App() {
   const [activeCategory, setActiveCategory] = useState("All");
 
   /**
-   * TOP 1% G AUTH GUARD:
    * Verifies JWT presence and expiration to protect transactional routes.
    */
   const isAuthenticated = () => {

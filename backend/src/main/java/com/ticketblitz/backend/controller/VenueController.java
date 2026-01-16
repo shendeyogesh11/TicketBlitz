@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * TOP 1% G INFRASTRUCTURE CONTROLLER:
  * Manages the global pool of physical locations and seating infrastructure.
  */
 @RestController

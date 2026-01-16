@@ -3,7 +3,6 @@ import axios from 'axios';
 import { Clock, CheckCircle, XCircle, FileText, MapPin, RefreshCcw, Loader2 } from 'lucide-react';
 
 /**
- * TOP 1% G PROPOSAL TRACKER:
  * Weaponized for real-time status synchronization and secure identity fetching.
  */
 export default function ProposalsTracker() {

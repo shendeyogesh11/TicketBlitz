@@ -8,7 +8,6 @@ import {
 import ProposalsTracker from '../components/ProposalsTracker';
 
 /**
- * TOP 1% G PARTNERSHIP HUB:
  * Weaponized for high-value event acquisition with automated Identity Injection.
  */
 export default function PartnerWithUs() {

@@ -4,12 +4,11 @@ import {
     Ticket, LayoutDashboard, Wallet, LogOut, 
     Search, Music, Trophy, Laptop, Palette, 
     LayoutGrid, CircleUser, ClipboardList, LogIn,
-    Handshake, // ADDED: High-fidelity icon for partnership
+    Handshake, 
     HelpCircle
 } from 'lucide-react';
 
 /**
- * TOP 1% G NAVIGATION ENGINE:
  * Features automated identity synchronization, dynamic auth toggling,
  * and business partnership entry points.
  */

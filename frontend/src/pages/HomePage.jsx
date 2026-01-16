@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 
 /**
- * TOP 1% G HOME PAGE:
  * Features a Narrative Hero Slider, Discovery Grid, and weaponized Infrastructure Footer.
  */
 const HomePage = ({ searchQuery = "", onSearch, activeCategory = "All" }) => {

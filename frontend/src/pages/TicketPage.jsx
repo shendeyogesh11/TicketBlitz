@@ -11,7 +11,6 @@ import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
 
 /**
- * TOP 1% G ENRICHED INTERFACE:
  * Weaponized with a Simulated Payment Bridge and Atomic Transaction Logging.
  */
 const TicketPage = () => {

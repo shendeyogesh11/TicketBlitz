@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Sparkles, Eye, EyeOff, AlertCircle, ChevronRight } from 'lucide-react';
 
 /**
- * TOP 1% G REGISTRATION ENGINE:
  * Weaponized with in-line validation, identity security, and design parity.
  */
 export default function Register() {

@@ -1,7 +1,6 @@
 import React from 'react';
 
 /**
- * TOP 1% G EVENT TABLE:
  * Implements strict type guarding to prevent "data.map is not a function" errors.
  */
 function EventTable({ data, onEdit, onDelete }) {

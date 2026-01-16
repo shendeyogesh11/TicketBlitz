@@ -12,7 +12,6 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     /**
-     * TOP 1% G DEEP FETCH:
      * This query uses 'JOIN FETCH' to solve the "Invalid Date" and missing venue bug.
      * It eagerly loads the Event and Venue data so they are available in the AdminService mapper.
      */
