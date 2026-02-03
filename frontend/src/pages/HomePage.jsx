@@ -116,7 +116,7 @@ const HomePage = ({ searchQuery = "", onSearch, activeCategory = "All" }) => {
                                         <div style={infoRow}><Calendar size={14} color="#6f42c1" /> {new Date(event.eventDate).toLocaleDateString()}</div>
                                         <div style={infoRow}><MapPin size={14} color="#6f42c1" /> {event.venue?.name}</div>
                                         <div style={footerRow}>
-                                            <div><span style={priceLabel}>From</span> <span style={priceValue}>${minPrice}</span></div>
+                                            <div><span style={priceLabel}>From</span> <span style={priceValue}>₹{minPrice}</span></div>
                                             <div style={buyIndicator}><ArrowRight size={20} color="#fff" /></div>
                                         </div>
                                     </div>

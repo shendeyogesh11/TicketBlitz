@@ -77,7 +77,7 @@ function EventTable({ data, onEdit, onDelete }) {
                                         }) : "Date TBD"}
                                     </td>
                                     <td style={tdStyle}>
-                                        <span style={{fontWeight: '600'}}>${minPrice} - ${maxPrice}</span>
+                                        <span style={{fontWeight: '600'}}>₹{minPrice} - ₹{maxPrice}</span>
                                     </td>
                                     <td style={tdStyle}>
                                         <span style={{

@@ -146,7 +146,7 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
                         <div key={index} style={tierCard}>
                             <div style={{display: 'flex', gap: '10px', marginBottom: '10px'}}>
                                 <input type="text" placeholder="Tier Name" required value={tier.tierName} onChange={(e) => handleTierChange(index, 'tierName', e.target.value)} style={{...tierInput, flex: 2}} />
-                                <input type="number" placeholder="Price ($)" required value={tier.price} onChange={(e) => handleTierChange(index, 'price', e.target.value)} style={tierInput} />
+                                <input type="number" placeholder="Price (₹)" required value={tier.price} onChange={(e) => handleTierChange(index, 'price', e.target.value)} style={tierInput} />
                                 <input type="number" placeholder="Stock" required value={tier.availableStock} onChange={(e) => handleTierChange(index, 'availableStock', e.target.value)} style={tierInput} />
                                 <button type="button" onClick={() => removeTier(index)} style={trashBtn}><Trash2 size={16}/></button>
                             </div>

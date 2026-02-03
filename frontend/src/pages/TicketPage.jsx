@@ -209,7 +209,7 @@ const TicketPage = () => {
                                             <span style={{...tierName, textDecoration: isSoldOut ? 'line-through' : 'none'}}>{tier.tierName}</span>
                                             {isSelected && !isSoldOut && <CheckCircle2 size={14} color="#6f42c1" />}
                                         </div>
-                                        <span style={tierPrice}>${tier.price}</span>
+                                        <span style={tierPrice}>₹{tier.price}</span>
                                     </div>
 
                                     {isSelected && !isSoldOut && (
@@ -249,7 +249,7 @@ const TicketPage = () => {
 
                     <div style={totalRow}>
                         <span style={totalLabel}>Total Payment</span>
-                        <span style={totalValue}>{selectedTier ? `$${(selectedTier.price * quantity).toLocaleString()}` : "$0"}</span>
+                        <span style={totalValue}>{selectedTier ? `₹${(selectedTier.price * quantity).toLocaleString()}` : "₹0"}</span>
                     </div>
 
                     <button 
@@ -273,7 +273,7 @@ const TicketPage = () => {
                         <h2 style={paymentStatus}>Securing Transaction...</h2>
                         <div style={paymentDetails}>
                             <p style={payRow}><span>Merchant:</span> <span>TicketBlitz Infrastructure</span></p>
-                            <p style={payRow}><span>Amount:</span> <span>{selectedTier ? `$${(selectedTier.price * quantity).toLocaleString()}` : "$0"}</span></p>
+                            <p style={payRow}><span>Amount:</span> <span>{selectedTier ? `₹${(selectedTier.price * quantity).toLocaleString()}` : "₹0"}</span></p>
                             <p style={payRow}><span>Identity:</span> <span>{localStorage.getItem("user_email")}</span></p>
                         </div>
                         <div style={secureShield}>

@@ -5,7 +5,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { 
     Users, Ticket, DollarSign, Activity, TrendingUp, 
     ShieldAlert, PlusCircle, ArrowLeft, Briefcase, 
-    CheckCircle, XCircle, Clock 
+    CheckCircle, XCircle, Clock, 
+    IndianRupee
 } from 'lucide-react';
 import AdminEventForm from '../components/AdminEventForm';
 import EventTable from '../components/EventTable';
@@ -198,9 +199,9 @@ function AdminDashboard() {
                     <p style={{...numberStyle, color: '#28a745'}}>{stats.totalTicketsSold.toLocaleString()}</p>
                 </div>
                 <div style={cardStyle}>
-                    <div style={cardHeader}><DollarSign size={16} color="#ffc107" /> Total Revenue</div>
+                    <div style={cardHeader}><IndianRupee size={16} color="#ffc107" /> Total Revenue</div>
                     <p style={{...numberStyle, color: '#ffc107'}}>
-                        ${stats.totalRevenue.toLocaleString()}
+                        ₹{stats.totalRevenue.toLocaleString()}
                     </p>
                 </div>
             </div>
