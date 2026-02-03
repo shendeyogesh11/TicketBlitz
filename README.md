@@ -623,7 +623,7 @@ Special thanks to the open-source community for providing the excellent tools an
 
 ⭐ Star this repository if you found it helpful!
 
-<br/><br/>
+<br/>
 
 © 2026 All Rights Reserved | Yogesh Shende
 
