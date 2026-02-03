@@ -599,34 +599,6 @@ stompClient.subscribe('/topic/stock/' + eventId, (message) => {
 
 ---
 
-## 👨‍💻 Contributors
-
-<div align="center">
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-
-      <sub><b>Yogesh Shende</b></sub>
-      <br />
-      <sub>Full Stack Developer</sub>
-      <br />
-      <sub>High-Concurrency Backend & React UI</sub>
-    </td>
-    <td align="center" width="50%">
-      
-      <sub><b>Swapnil Patil</b></sub>
-      <br />
-      <sub>Full Stack Developer</sub>
-      <br />
-      <sub>UI Design & Backend Systems</sub>
-    </td>
-  </tr>
-</table>
-
-</div>
-
----
 
 ## 📄 License
 
@@ -650,5 +622,9 @@ Special thanks to the open-source community for providing the excellent tools an
 **Built with ❤️ using Spring Boot & React**
 
 ⭐ Star this repository if you found it helpful!
+
+<br/><br/>
+
+© 2026 All Rights Reserved | Yogesh Shende
 
 </div>
