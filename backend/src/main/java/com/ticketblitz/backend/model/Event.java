@@ -5,10 +5,7 @@ import jakarta.persistence.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,7 +36,7 @@ public class Event {
 
     private String imageUrl; // For high-res posters
 
-    @Future(message = "Event date must be in the future")
+//    @Future(message = "Event date must be in the future")?
     private LocalDate eventDate;
 
     /**
@@ -69,4 +66,27 @@ public class Event {
         ticketTiers.add(tier);
         tier.setEvent(this);
     }
+
+
+    @ElementCollection
+    @CollectionTable(name = "event_gallery", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "image_url")
+    @Builder.Default
+    private List<String> galleryImages = new ArrayList<>();
+
+    @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @JsonIgnoreProperties("event")
+    private List<Review> reviews;
+
+    // Computed property for the UI star rating
+    @Transient
+    public double getAverageRating() {
+        if (reviews == null || reviews.isEmpty()) return 0.0;
+        // Round to 1 decimal place
+        double avg = reviews.stream().mapToInt(Review::getRating).average().orElse(0.0);
+        return Math.round(avg * 10.0) / 10.0;
+    }
+
 }

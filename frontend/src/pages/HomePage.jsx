@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
+import PastEventsSection from '../components/PastEventsSection';
 import { 
     Calendar, MapPin, ArrowRight, SearchX, 
     Loader2, ShieldCheck, Globe, HelpCircle, 
-    Instagram, X as XIcon, ArrowUpRight // ADDED: 45° Directional Icon
+    Instagram, X as XIcon, ArrowUpRight 
 } from 'lucide-react';
 
 /**
@@ -35,7 +36,19 @@ const HomePage = ({ searchQuery = "", onSearch, activeCategory = "All" }) => {
         fetchEvents();
     }, []);
 
-    const heroEvents = events.slice(0, 3); 
+    // 1. FILTER & SORT HERO: Only upcoming events, sorted by date (Soonest -> Latest)
+    const upcomingHeroEvents = events
+        .filter(event => {
+            const eventDate = new Date(event.eventDate);
+            const now = new Date();
+            now.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
+            return eventDate >= now;
+        })
+        .sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
+
+    // 2. SLICE HERO: Take the top 3 "Must-See" (Soonest) events
+    const heroEvents = upcomingHeroEvents.slice(0, 3);
+    
     useEffect(() => {
         if (heroEvents.length > 0) {
             const timer = setInterval(() => {
@@ -45,16 +58,28 @@ const HomePage = ({ searchQuery = "", onSearch, activeCategory = "All" }) => {
         }
     }, [heroEvents.length]);
 
+    // 3. MAIN GRID FILTER: Hides past events + applies Search/Category
     const filteredEvents = events.filter(event => {
+        // Search Logic
         const matchesSearch = (
             event.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
             event.category?.toLowerCase().includes(searchQuery.toLowerCase())
         );
+
+        // Category Logic
         const matchesCategory = 
             activeCategory === "All" || 
             event.category?.trim().toLowerCase() === activeCategory.toLowerCase();
 
-        return matchesSearch && matchesCategory;
+        // 🛡️ DATE GUARD: Filter out events where the date is in the past
+        const eventDate = new Date(event.eventDate);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0); 
+        eventDate.setHours(0, 0, 0, 0);
+        
+        const isUpcoming = eventDate >= now;
+
+        return matchesSearch && matchesCategory && isUpcoming;
     });
 
     if (loading) return (
@@ -132,6 +157,9 @@ const HomePage = ({ searchQuery = "", onSearch, activeCategory = "All" }) => {
                         <button onClick={() => { if(onSearch) onSearch(""); }} style={resetBtn}>Reset Discovery</button>
                     </div>
                 )}
+
+                {/* 🚀 NEW SECTION INJECTION: MEMORY LANE */}
+                <PastEventsSection />
             </div>
 
             {/* INFRASTRUCTURE FOOTER */}

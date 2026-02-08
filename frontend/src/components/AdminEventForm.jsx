@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Image as ImageIcon, Link as LinkIcon, Plus, Trash2, MapPin, Ticket, Clock } from 'lucide-react';
-
+import { Image as ImageIcon, Link as LinkIcon, Plus, Trash2, Ticket, Clock, Camera, X } from 'lucide-react';
 
 function AdminEventForm({ onClose, refreshData, initialData, venues }) {
     
-    const [eventData, setEventData] = useState(initialData || {
+    // Default Empty State
+    const defaultState = {
         title: "",
         description: "",
         imageUrl: "",
@@ -15,17 +15,33 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
         venue: { id: "" },
         ticketTiers: [
             { tierName: "General Admission", price: 0, availableStock: 0, benefits: "Standard Entry" }
-        ]
-    });
+        ],
+        galleryImages: [] 
+    };
 
-    
+    const [eventData, setEventData] = useState(defaultState);
+
+    // 🔄 CRITICAL FIX: Sync State when initialData changes (e.g. clicking Edit)
     useEffect(() => {
-        if (!initialData && venues && venues.length > 0 && !eventData.venue.id) {
-            setEventData(prev => ({ ...prev, venue: { id: venues[0].id } }));
+        if (initialData) {
+            setEventData({
+                ...initialData,
+                // Ensure venue is an object with ID to prevent crashes
+                venue: initialData.venue || { id: "" },
+                // Ensure gallery is an array, never null
+                galleryImages: initialData.galleryImages || [] 
+            });
+        } else {
+            // Reset to default if creating new
+            setEventData(defaultState);
+            // Auto-select first venue if available
+            if (venues && venues.length > 0) {
+                setEventData(prev => ({ ...prev, venue: { id: venues[0].id } }));
+            }
         }
-    }, [venues, initialData, eventData.venue.id]);
+    }, [initialData, venues]);
 
-    // --- DYNAMIC TIER LOGIC ---
+    // --- TIER LOGIC ---
     const addTier = () => {
         setEventData({
             ...eventData,
@@ -45,35 +61,57 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
         setEventData({ ...eventData, ticketTiers: updatedTiers });
     };
 
-    /**
-     * ATOMIC PERSISTENCE HANDSHAKE:
-     * Dispatches the event data to the preparation and sync engine.
-     */
+    // --- GALLERY LOGIC ---
+    const addGalleryImage = () => {
+        setEventData({
+            ...eventData,
+            galleryImages: [...(eventData.galleryImages || []), ""]
+        });
+    };
+
+    const removeGalleryImage = (index) => {
+        const updatedGallery = eventData.galleryImages.filter((_, i) => i !== index);
+        setEventData({ ...eventData, galleryImages: updatedGallery });
+    };
+
+    const handleGalleryChange = (index, value) => {
+        const updatedGallery = [...(eventData.galleryImages || [])];
+        updatedGallery[index] = value;
+        setEventData({ ...eventData, galleryImages: updatedGallery });
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem("jwt_token");
         const config = { headers: { Authorization: `Bearer ${token}` } };
         
-        // Data Normalization
+        // Prepare Data
         const finalData = {
             ...eventData,
-            imageUrl: eventData.imageUrl || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30"
+            imageUrl: eventData.imageUrl || "https://images.unsplash.com/photo-1492684223066-81342ee5ff30",
+            // 🛡️ Filter out empty strings to send clean data
+            galleryImages: eventData.galleryImages.filter(url => url && url.trim() !== "")
         };
 
         try {
-            if (initialData) {
+            console.log("📤 Sending Data:", finalData); // Check console to see what is sent!
+
+            if (initialData && initialData.id) {
+                // UPDATE (PUT)
                 await axios.put(`http://localhost:8080/api/events/${initialData.id}`, finalData, config);
-                alert("✅ Global Event Updated!");
+                alert("✅ Experience Updated Successfully!");
             } else {
-                // Hits the PrepareAndSave endpoint in AdminService
+                // CREATE (POST)
                 await axios.post('http://localhost:8080/api/events/create', finalData, config);
-                alert("🚀 Global Event Launched!");
+                alert("🚀 Experience Launched!");
             }
-            if (refreshData) refreshData(); 
+            
+            if (refreshData) refreshData(); // Reload the list in dashboard
             onClose(); 
         } catch (error) {
-            console.error("Action failed", error.response?.data);
-            alert("Error: Check console for validation details.");
+            console.error("Action failed", error);
+            const msg = error.response?.data?.message || "Check console for details.";
+            alert(`Error: ${msg}`);
         }
     };
 
@@ -111,9 +149,8 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
                 <div style={{gridColumn: 'span 2', display: 'flex', gap: '12px'}}>
                     <input type="date" required value={eventData.eventDate} onChange={(e) => setEventData({...eventData, eventDate: e.target.value})} style={{...inputStyle, flex: 1}} />
                     
-                    {/* ENHANCED DROPDOWN: Uses the prop-driven venue state */}
                     <select 
-                        value={eventData.venue.id} 
+                        value={eventData.venue?.id || ""} 
                         onChange={(e) => setEventData({...eventData, venue: { id: e.target.value }})} 
                         style={{...inputStyle, flex: 1.5}} 
                         required
@@ -122,9 +159,6 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
                         {venues && venues.map(v => (
                             <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
                         ))}
-                        {(!venues || venues.length === 0) && (
-                            <option value="" disabled>No Venues Registered</option>
-                        )}
                     </select>
                 </div>
 
@@ -132,6 +166,31 @@ function AdminEventForm({ onClose, refreshData, initialData, venues }) {
                     <LinkIcon size={14} color="#999" />
                     <input type="text" placeholder="Poster Image URL" value={eventData.imageUrl} onChange={(e) => setEventData({...eventData, imageUrl: e.target.value})} style={{border: 'none', outline: 'none', width: '100%'}} />
                 </div>
+            </div>
+
+            {/* 📸 GALLERY MANAGER (ADMIN ONLY) */}
+            <div style={{marginTop: '25px', padding: '15px', background: '#fff', borderRadius: '12px', border: '1px solid #eee'}}>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px'}}>
+                    <h3 style={sectionLabel}><Camera size={14} /> Official Gallery (Admin Only)</h3>
+                    <button type="button" onClick={addGalleryImage} style={addBtn}>+ Add Image URL</button>
+                </div>
+                
+                {(!eventData.galleryImages || eventData.galleryImages.length === 0) && (
+                    <p style={{fontSize: '11px', color: '#999', fontStyle: 'italic'}}>No official snaps added yet.</p>
+                )}
+
+                {eventData.galleryImages?.map((url, index) => (
+                    <div key={index} style={{display: 'flex', gap: '10px', marginBottom: '8px'}}>
+                        <input 
+                            type="text" 
+                            placeholder="Paste Image URL..." 
+                            value={url} 
+                            onChange={(e) => handleGalleryChange(index, e.target.value)} 
+                            style={{...tierInput, flex: 1}} 
+                        />
+                        <button type="button" onClick={() => removeGalleryImage(index)} style={trashBtn}><Trash2 size={16}/></button>
+                    </div>
+                ))}
             </div>
 
             {/* DYNAMIC TIER BUILDER */}

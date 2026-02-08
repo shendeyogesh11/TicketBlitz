@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -42,6 +43,19 @@ public class EventController {
         return ResponseEntity.ok(eventRepository.searchEvents(q));
     }
 
+    // Inside EventController.java
+
+    @GetMapping("/past")
+    public ResponseEntity<List<Event>> getPastEvents() {
+        // Fetch all, filter for date < now, sort by most recent
+        List<Event> allEvents = eventRepository.findAll();
+        List<Event> pastEvents = allEvents.stream()
+                .filter(e -> e.getEventDate().isBefore(LocalDate.now()))
+                .sorted((a, b) -> b.getEventDate().compareTo(a.getEventDate())) // Newest past event first
+                .toList();
+        return ResponseEntity.ok(pastEvents);
+    }
+
     /**
      * SECURE CREATION HANDSHAKE:
      * Saves to DB first, then syncs to Redis only after IDs are guaranteed.
@@ -71,37 +85,47 @@ public class EventController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Event> updateEvent(@PathVariable Long id, @Valid @RequestBody Event eventDetails) {
-        return eventRepository.findById(id)
-                .map(existingEvent -> {
-                    // Update Core Fields
-                    existingEvent.setTitle(eventDetails.getTitle());
-                    existingEvent.setDescription(eventDetails.getDescription());
-                    existingEvent.setCategory(eventDetails.getCategory());
-                    existingEvent.setEventDate(eventDetails.getEventDate());
-                    existingEvent.setEventTime(eventDetails.getEventTime());
-                    existingEvent.setImageUrl(eventDetails.getImageUrl());
+    public ResponseEntity<Event> updateEvent(@PathVariable Long id, @RequestBody Event updatedData) {
+        return eventRepository.findById(id).map(existingEvent -> {
 
-                    // Sync Venue
-                    if (eventDetails.getVenue() != null) {
-                        existingEvent.setVenue(eventDetails.getVenue());
-                    }
+            // 1. Update Standard Fields
+            existingEvent.setTitle(updatedData.getTitle());
+            existingEvent.setDescription(updatedData.getDescription());
+            existingEvent.setImageUrl(updatedData.getImageUrl());
+            existingEvent.setEventDate(updatedData.getEventDate());
+            existingEvent.setEventTime(updatedData.getEventTime());
+            existingEvent.setCategory(updatedData.getCategory());
 
-                    // Sync Dynamic Tiers
-                    if (eventDetails.getTicketTiers() != null) {
-                        existingEvent.getTicketTiers().clear();
-                        eventDetails.getTicketTiers().forEach(existingEvent::addTicketTier);
-                    }
+            // 2. Update Venue Relation
+            if (updatedData.getVenue() != null && updatedData.getVenue().getId() != null) {
+                venueRepository.findById(updatedData.getVenue().getId())
+                        .ifPresent(existingEvent::setVenue);
+            }
 
-                    // 1. SAVE: Finalize DB transaction
-                    Event updatedEvent = adminService.prepareAndSaveEvent(existingEvent);
+            // 3. Update Ticket Tiers
+            if (updatedData.getTicketTiers() != null) {
+                existingEvent.getTicketTiers().clear();
+                existingEvent.getTicketTiers().addAll(updatedData.getTicketTiers());
+            }
 
-                    // 2. SYNC: Refresh the cache using persistent IDs
-                    adminService.syncStockToRedis(updatedEvent);
+            // ---------------------------------------------------------
+            // 🛑 CRITICAL FIX FOR GALLERY IMAGES
+            // Do NOT use setGalleryImages(). Use clear() + addAll()
+            // ---------------------------------------------------------
+            if (updatedData.getGalleryImages() != null) {
+                // We assume the list is not null in Entity (initialized to new ArrayList<>())
+                if (existingEvent.getGalleryImages() == null) {
+                    // Safety check if your DB has nulls
+                    existingEvent.setGalleryImages(updatedData.getGalleryImages());
+                } else {
+                    existingEvent.getGalleryImages().clear(); // Wipe old (Hibernate tracks this)
+                    existingEvent.getGalleryImages().addAll(updatedData.getGalleryImages()); // Add new (Hibernate sees these as new inserts)
+                }
+            }
+            // ---------------------------------------------------------
 
-                    return ResponseEntity.ok(updatedEvent);
-                })
-                .orElse(ResponseEntity.notFound().build());
+            return ResponseEntity.ok(eventRepository.save(existingEvent));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     /**
