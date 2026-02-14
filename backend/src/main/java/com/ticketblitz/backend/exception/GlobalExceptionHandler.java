@@ -6,6 +6,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.PessimisticLockingFailureException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -53,6 +54,17 @@ public class GlobalExceptionHandler {
                 LocalDateTime.now()
         );
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    // Catch Database Lock Timeouts (5s limit)
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ErrorDetails> handleLockFailure(PessimisticLockingFailureException ex) {
+        ErrorDetails error = new ErrorDetails(
+                HttpStatus.TOO_MANY_REQUESTS.value(), // 429 Error
+                "🔥 High traffic! Please retry your booking in a few seconds.",
+                LocalDateTime.now()
+        );
+        return new ResponseEntity<>(error, HttpStatus.TOO_MANY_REQUESTS);
     }
 
     // --- INNER HELPER CLASS FOR STRUCTURED JSON ---
