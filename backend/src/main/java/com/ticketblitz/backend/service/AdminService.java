@@ -16,14 +16,11 @@ public class AdminService {
     private final UserRepository userRepository;
     private final OrderRepository orderRepository;
     private final EventRepository eventRepository;
-    private final VenueRepository venueRepository; // INJECTED: For physical infrastructure management
+    private final VenueRepository venueRepository;
     private final StockService stockService;
     private final StringRedisTemplate redisTemplate;
 
-    /**
-     * VENUE INFRASTRUCTURE HELPERS:
-     * Provides clean CRUD operations for the Admin Dashboard.
-     */
+    // --- VENUE MANAGEMENT ---
     @Transactional(readOnly = true)
     public List<Venue> getAllVenues() {
         return venueRepository.findAll();
@@ -40,34 +37,109 @@ public class AdminService {
     }
 
     /**
-     * TOP 1% G PERSISTENCE GUARD:
-     * Saves the event and flushes it to ensure IDs are generated immediately.
+     * 🛑 TOP 1% G PERSISTENCE GUARD (CREATE):
+     * 1. Links Tiers to Event (Fixes NULL event_id bug).
+     * 2. Saves to Postgres & Flushes (Generates IDs).
+     * 3. ⚡ SYNC: Pushes stock to Redis immediately.
      */
     @Transactional
     public Event prepareAndSaveEvent(Event event) {
+        // 1. Link Tiers
         if (event.getTicketTiers() != null) {
             event.getTicketTiers().forEach(tier -> tier.setEvent(event));
         }
-        return eventRepository.saveAndFlush(event);
+
+        // 2. Save to DB
+        Event savedEvent = eventRepository.saveAndFlush(event);
+
+        // 3. Sync Redis
+        if (savedEvent.getTicketTiers() != null) {
+            for (TicketTier tier : savedEvent.getTicketTiers()) {
+                stockService.initializeStock(
+                        savedEvent.getId(),
+                        tier.getId(),
+                        tier.getAvailableStock()
+                );
+            }
+        }
+
+        System.out.println("✅ Event Created & Redis Hydrated: " + savedEvent.getTitle() + " | ID: " + savedEvent.getId());
+        return savedEvent;
     }
 
     /**
-     * GLOBAL CACHE ENGINE (EAGER FETCH):
-     * The definitive sync tool for re-populating Redis from the Database.
+     * 🛑 ATOMIC UPDATE ENGINE (UPDATE):
+     * Handles complex merging of existing events, forcing relationships on new tiers,
+     * and ensuring Redis is perfectly synchronized.
+     */
+    @Transactional
+    public Event updateEvent(Long id, Event updatedData) {
+        Event existingEvent = eventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        // 1. Update Basic Fields
+        existingEvent.setTitle(updatedData.getTitle());
+        existingEvent.setDescription(updatedData.getDescription());
+        existingEvent.setImageUrl(updatedData.getImageUrl());
+        existingEvent.setEventDate(updatedData.getEventDate());
+        existingEvent.setEventTime(updatedData.getEventTime());
+        existingEvent.setCategory(updatedData.getCategory());
+
+        // 2. Update Venue (Relationship Handshake)
+        if (updatedData.getVenue() != null && updatedData.getVenue().getId() != null) {
+            Venue venue = venueRepository.findById(updatedData.getVenue().getId())
+                    .orElseThrow(() -> new RuntimeException("Venue not found"));
+            existingEvent.setVenue(venue);
+        }
+
+        // 3. Update Gallery (Safe Merge)
+        if (updatedData.getGalleryImages() != null) {
+            existingEvent.getGalleryImages().clear();
+            existingEvent.getGalleryImages().addAll(updatedData.getGalleryImages());
+        }
+
+        // 4. 🛑 CRITICAL FIX: Update Tiers & Force Link
+        // This solves the "Ghost Tier" issue on updates.
+        if (updatedData.getTicketTiers() != null) {
+            existingEvent.getTicketTiers().clear();
+            existingEvent.getTicketTiers().addAll(updatedData.getTicketTiers());
+
+            // 🔗 THE MISSING LINK: Re-stamp the parent on every tier (old or new)
+            existingEvent.getTicketTiers().forEach(tier -> tier.setEvent(existingEvent));
+        }
+
+        // 5. Save & Flush (Commit to DB)
+        Event savedEvent = eventRepository.saveAndFlush(existingEvent);
+
+        // 6. ⚡ Redis Sync (Update Cache)
+        if (savedEvent.getTicketTiers() != null) {
+            for (TicketTier tier : savedEvent.getTicketTiers()) {
+                stockService.initializeStock(
+                        savedEvent.getId(),
+                        tier.getId(),
+                        tier.getAvailableStock()
+                );
+            }
+        }
+
+        System.out.println("✅ Event Updated & Redis Synced: " + savedEvent.getTitle());
+        return savedEvent;
+    }
+
+    /**
+     * GLOBAL CACHE ENGINE:
+     * Useful for server restarts or manual admin syncs.
      */
     @Transactional(readOnly = true)
     public void reinitializeAllStock() {
-        // FORCE JOIN FETCH: Crucial to load IDs before sync
-        List<Event> allEvents = eventRepository.findAllWithTiers();
+        List<Event> allEvents = eventRepository.findAll();
         System.out.println("🏁 [Layer 2: Service] Syncing " + allEvents.size() + " events to Redis.");
 
         for (Event event : allEvents) {
-            if (event.getTicketTiers() != null && !event.getTicketTiers().isEmpty()) {
-                System.out.println("🔎 Hydrating: " + event.getTitle());
+            if (event.getTicketTiers() != null) {
                 event.getTicketTiers().forEach(tier -> {
                     if (event.getId() != null && tier.getId() != null) {
                         stockService.initializeStock(event.getId(), tier.getId(), tier.getAvailableStock());
-                        System.out.println("   ✅ BRICK LAID: Tier " + tier.getId() + " -> " + tier.getAvailableStock());
                     }
                 });
             }
@@ -99,6 +171,7 @@ public class AdminService {
         eventRepository.delete(event);
     }
 
+    // --- DASHBOARD STATS ---
     @Transactional(readOnly = true)
     public SystemStatsDto getSystemStats() {
         Long ticketsSold = orderRepository.sumTotalTicketsSold();

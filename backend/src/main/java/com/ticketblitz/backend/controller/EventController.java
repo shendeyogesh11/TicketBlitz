@@ -43,8 +43,6 @@ public class EventController {
         return ResponseEntity.ok(eventRepository.searchEvents(q));
     }
 
-    // Inside EventController.java
-
     @GetMapping("/past")
     public ResponseEntity<List<Event>> getPastEvents() {
         // Fetch all, filter for date < now, sort by most recent
@@ -80,52 +78,20 @@ public class EventController {
     }
 
     /**
-     * SECURE UPDATE HANDSHAKE:
-     * Refreshes metadata and re-broadcasts the latest stock levels.
+     *  SECURE UPDATE HANDSHAKE (FIXED):
+     * Delegates complex merging logic to AdminService to ensure
+     * data integrity (Parent-Child links) and Redis synchronization.
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Event> updateEvent(@PathVariable Long id, @RequestBody Event updatedData) {
-        return eventRepository.findById(id).map(existingEvent -> {
-
-            // 1. Update Standard Fields
-            existingEvent.setTitle(updatedData.getTitle());
-            existingEvent.setDescription(updatedData.getDescription());
-            existingEvent.setImageUrl(updatedData.getImageUrl());
-            existingEvent.setEventDate(updatedData.getEventDate());
-            existingEvent.setEventTime(updatedData.getEventTime());
-            existingEvent.setCategory(updatedData.getCategory());
-
-            // 2. Update Venue Relation
-            if (updatedData.getVenue() != null && updatedData.getVenue().getId() != null) {
-                venueRepository.findById(updatedData.getVenue().getId())
-                        .ifPresent(existingEvent::setVenue);
-            }
-
-            // 3. Update Ticket Tiers
-            if (updatedData.getTicketTiers() != null) {
-                existingEvent.getTicketTiers().clear();
-                existingEvent.getTicketTiers().addAll(updatedData.getTicketTiers());
-            }
-
-            // ---------------------------------------------------------
-            // 🛑 CRITICAL FIX FOR GALLERY IMAGES
-            // Do NOT use setGalleryImages(). Use clear() + addAll()
-            // ---------------------------------------------------------
-            if (updatedData.getGalleryImages() != null) {
-                // We assume the list is not null in Entity (initialized to new ArrayList<>())
-                if (existingEvent.getGalleryImages() == null) {
-                    // Safety check if your DB has nulls
-                    existingEvent.setGalleryImages(updatedData.getGalleryImages());
-                } else {
-                    existingEvent.getGalleryImages().clear(); // Wipe old (Hibernate tracks this)
-                    existingEvent.getGalleryImages().addAll(updatedData.getGalleryImages()); // Add new (Hibernate sees these as new inserts)
-                }
-            }
-            // ---------------------------------------------------------
-
-            return ResponseEntity.ok(eventRepository.save(existingEvent));
-        }).orElse(ResponseEntity.notFound().build());
+        try {
+            // The service now handles the complex merging, tier linking, and Redis sync
+            Event updatedEvent = adminService.updateEvent(id, updatedData);
+            return ResponseEntity.ok(updatedEvent);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**
