@@ -1,630 +1,577 @@
 <div align="center">
 
-
-
 # 🎟️ TicketBlitz
 
-### High-Concurrency Event Ticketing Platform
+**Full-stack event ticketing platform with Redis-based concurrency control and real-time WebSocket inventory sync.**
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](https://github.com)
-[![Stack](https://img.shields.io/badge/stack-Full%20Stack-blue?style=for-the-badge)](https://github.com)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react)](https://reactjs.org)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2-6DB33F?style=for-the-badge&logo=springboot)](https://spring.io/projects/spring-boot)
-[![Redis](https://img.shields.io/badge/Redis-Cached-DC382D?style=for-the-badge&logo=redis)](https://redis.io)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-336791?style=for-the-badge&logo=postgresql)](https://www.postgresql.org)
-
-**Production-grade, full-stack event ticketing ecosystem engineered for high-traffic stadium sales, real-time concurrency control, and atomic transactions.**
-
-[Features](#-core-engineering-features) • [Architecture](#-technical-architecture) • [Screenshots](#-screenshots) • [Installation](#-installation--setup) • [Demo](#-demo-walkthrough) • [Contributors](#-contributors)
-
-
-
----
+[![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk)](https://openjdk.org)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.1-6DB33F?style=flat-square&logo=springboot)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react)](https://reactjs.org)
+[![Redis](https://img.shields.io/badge/Redis-7+-DC382D?style=flat-square&logo=redis)](https://redis.io)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org)
 
 </div>
 
-## 🚀 Overview
+---
 
-**TicketBlitz** A production-ready event ticketing system built for high traffic, real-time updates, and secure transactions.
+## Overview
 
-### What Makes TicketBlitz Different?
+TicketBlitz is a full-stack ticketing system that handles the core problem of flash sales: selling limited inventory to many concurrent buyers without race conditions or oversells.
 
-- **⚡ Redis-Driven Acceleration** - Sub-millisecond session access and atomic rate limiting
-- **🔄 Real-Time WebSocket Updates** - Live inventory synchronization across all connected clients
-- **🔒 Transactional Stock Locking** - Prevents race conditions and phantom bookings
-- **💳 Simulated Payment Flow** - Bank-grade transaction simulation with unique IDs
-- **📄 Client-Side Ticket Generation** - Secure PDF and QR code generation in the browser
-- **🏗️ Enterprise Architecture** - Layered backend design with mono-repo structure
+The purchase path runs through a **Redis atomic `DECREMENT`** before touching the database. Since Redis executes commands single-threadedly, this acts as a lock-free concurrency gate — 1,000 simultaneous buyers competing for 1 ticket produce exactly 1 order. If the subsequent PostgreSQL write fails, the Redis counter is restored via a compensating increment.
 
-This system mirrors production ticketing platforms like Ticketmaster and StubHub, capable of handling flash sales, peak traffic, and thousands of concurrent users without data corruption.
+Stock changes are broadcast to all connected browser tabs over **WebSocket (STOMP)** in real time.
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-1. [Core Engineering Features](#-core-engineering-features)
-2. [Technical Architecture](#-technical-architecture)
-3. [Screenshots](#-screenshots)
-4. [Frontend Architecture](#-frontend-architecture)
-5. [Backend Architecture](#-backend-architecture)
-6. [Database & Data Model](#-database--data-model)
-7. [Installation & Setup](#-installation--setup)
-8. [Running the System](#-running-the-system)
-9. [Verification Steps](#-verification-steps)
-10. [Demo Walkthrough](#-demo-walkthrough)
-11. [Performance & Reliability](#-performance--reliability)
-12. [Security Design](#-security-design)
-13. [Contributors](#-contributors)
+1. [Tech Stack](#tech-stack)
+2. [Features](#features)
+3. [Architecture](#architecture)
+4. [Frontend](#frontend)
+5. [Backend](#backend)
+6. [Data Model](#data-model)
+7. [Redis Purchase Engine](#redis-purchase-engine)
+8. [API Reference](#api-reference)
+9. [Setup & Installation](#setup--installation)
+10. [Testing](#testing)
+11. [Screenshots](#screenshots)
 
 ---
 
-## ⚡ Core Engineering Features
+## Tech Stack
 
-### 1️⃣ Redis Acceleration Layer
-
-Redis serves as a **mission-critical infrastructure component**, not just a cache:
-
-#### 🔹 Sub-Millisecond Session Access
-- JWT session states stored in Redis for instant retrieval
-- Centralized token blacklist for secure logout
-- Reduces database load during login spikes by **~40%**
-
-#### 🔹 Atomic Rate Limiting
-- Redis atomic counters prevent API abuse
-- Public APIs limited to **100 requests/minute per IP**
-- Protects against DDoS-style traffic surges
-
-#### 🔹 Write-Behind Caching
-- Frequently accessed data (events, venues) cached in Redis
-- Homepage loads instantly even under heavy load
-- Cache invalidation on data updates
+| Layer | Technology | Version |
+|:------|:-----------|:--------|
+| Frontend | React, Vite | 19.2 / 7.2 |
+| Routing | React Router DOM | 7.12 |
+| HTTP | Axios | 1.13 |
+| WebSocket (client) | stompjs, sockjs-client | 2.3 / 1.6 |
+| PDF & QR | jsPDF, html2canvas, qrcode.react | 4.0 / 1.4 / 4.2 |
+| Charts | Recharts | 3.6 |
+| Icons | Lucide React | 0.562 |
+| Backend | Spring Boot, Java 17 | 4.0.1 |
+| Security | Spring Security, JJWT (HS256) | 0.11.5 |
+| Database | PostgreSQL | 15+ |
+| ORM | Spring Data JPA / Hibernate | — |
+| Cache / Concurrency | Redis, Lettuce client | 7+ |
+| Real-time | Spring WebSocket (STOMP) | — |
+| Build | Maven Wrapper, npm | — |
 
 ---
 
-### 2️⃣ Real-Time WebSocket Concurrency
+## Features
 
-Powered by **Spring Boot WebSockets (STOMP over SockJS)** instead of inefficient polling.
+- **Atomic inventory control** — Redis `DECREMENT` as the concurrency gate; no database locks on the purchase hot path
+- **Compensating transactions** — Redis is restored if the PostgreSQL write fails, preventing phantom reservations
+- **Real-time stock sync** — WebSocket broadcasts `{ tierId, remaining }` to all tabs on every purchase
+- **Client-side ticket generation** — PDF with embedded QR code rendered entirely in the browser via `html2canvas` + `jsPDF`
+- **Simulated payment flow** — 2-second modal with a unique `TXN_BLITZ_XXXX` ID before the API call fires
+- **Event reviews** — Star ratings (1–5), text, and images; edit/delete restricted to the original author
+- **Partner portal** — B2B inquiry submission with admin-side status management (PENDING / REVIEWED / APPROVED)
+- **Admin dashboard** — System stats (users, revenue, tickets sold via Recharts), full event/venue/user/partner CRUD
+- **Role-based access** — `CUSTOMER` and `ADMIN` roles embedded in JWT; enforced server-side via `@PreAuthorize`
 
-#### 🔹 Live Stock Broadcast
-When a ticket is purchased, updated stock is instantly pushed to all connected clients:
+---
+
+## Architecture
+
+### Request Flow
+
 ```
-/topic/stock/{eventId}
+React (Vite) ──── Axios ───────────────────────────► Spring Boot :8080
+                                                              │
+               POST /api/stock/purchase                       │
+                 └─ StockService.processPurchase()            │
+                      ├─ Redis DECREMENT (atomic)             │
+                      │    ├─ result >= 0 → continue          │
+                      │    └─ result < 0  → refund, reject    │
+                      ├─ PostgreSQL: update tier stock         │
+                      ├─ PostgreSQL: insert order             │
+                      └─ WebSocket broadcast                   │
+                                                              │
+WebSocket (SockJS/STOMP) ◄── /topic/stock/{eventId} ─────────┘
 ```
 
-#### 🔹 Zero-Refresh UI
-- Users see available tickets update in real-time
-- Eliminates **phantom bookings**
-- Creates urgency similar to real-world platforms
+### Redis Key Format
 
-<!-- 
-  TO ADD REAL-TIME DEMO GIF:
-  1. Record two browser windows showing real-time updates
-  2. Save as 'images/realtime-demo.gif'
-  3. Uncomment the section below
--->
-<!--
-<div align="center">
-  <img src="./images/realtime-demo.gif" alt="Real-time Updates Demo" width="800"/>
-  <p><em>Real-time stock updates across multiple browser windows</em></p>
-</div>
--->
+```
+event:{eventId}:tier:{tierId}  →  "42"   (string integer)
+```
 
----
+### Module Map
 
-### 3️⃣ Simulated Payment Bridge
+```
+backend/
+├── auth/           Register + authenticate endpoints and service
+├── config/         Security, CORS, JWT filter, WebSocket broker
+├── controller/     Admin, Event, Order, Ticket, Venue, Review, Partner
+├── service/        StockService (Redis + WS), AdminService (event lifecycle + stats)
+├── model/          JPA entities
+├── repository/     Spring Data JPA with custom JPQL queries
+├── dto/            OrderDto, SystemStatsDto, UserDto, StatusUpdateRequest
+└── exception/      GlobalExceptionHandler
 
-High-fidelity **bank handshake simulation** demonstrates transactional reliability:
-
-- UI locks during payment processing
-- 2-second simulated latency using `setTimeout`
-- Unique transaction ID generation: `TXN_BLITZ_XXXX`
-- Transaction ID validation before database commit
-
-Ensures end-to-end flow correctness in production scenarios.
+frontend/src/
+├── pages/          HomePage, TicketPage, MyTickets, AdminDashboard, PartnerWithUs, HelpCenter
+├── components/     Navbar, AdminRoute, AdminEventForm, EventTable, VenueManager, ProposalsTracker, PastEventsSection
+└── utils/          auth.js (isTokenExpired), authUtils.js (getUserRoleFromToken)
+```
 
 ---
 
-### 4️⃣ Client-Side Atomic Fulfillment
+## Frontend
 
-Browser-based ticket generation reduces server load:
+### Pages
 
-#### 🔹 Browser-Generated Tickets
-- Uses `html2canvas` + `jsPDF`
-- High-DPI digital gate passes
-- Significantly reduces backend CPU load
+| Route | Page | Description |
+|:------|:-----|:------------|
+| `/` and `/home` | `HomePage` | Event grid with live search (title + city) and category filters |
+| `/tickets/:eventId` | `TicketPage` | Tier selection, WebSocket subscription, seating map lightbox, payment modal, confetti on success |
+| `/my-tickets` | `MyTickets` | Digital wallet — enriched order list with PDF/QR download |
+| `/admin` | `AdminDashboard` | Stats, event/venue/user/partner management |
+| `/partner` | `PartnerWithUs` | Multi-step B2B inquiry form *(public — no auth required)* |
+| `/help` | `HelpCenter` | Support hub *(public — no auth required)* |
 
-#### 🔹 Secure QR Code
-- Vector QR generated client-side
-- Encodes: Order ID, User Hash, Timestamp
-- Used for gate verification and authentication
+### Route Guards
 
----
+`App.jsx` checks `isTokenExpired()` on every protected route render. Expired tokens trigger `localStorage.clear()` and redirect to login. `AdminRoute.jsx` additionally reads the `role` claim via `getUserRoleFromToken()` and blocks non-admins from `/admin`.
 
-## 🛠️ Technical Architecture
+### Client-Side Ticket Generation (`MyTickets.jsx`)
 
-### Tech Stack Overview
+1. `html2canvas` renders the styled ticket component to a `<canvas>` (3× scale for high-DPI)
+2. `jsPDF` converts the canvas to a downloadable PDF blob saved as `TicketBlitz_Pass_{id}.pdf`
+3. `qrcode.react` (`QRCodeSVG`) embeds a QR code encoding the order ID as a string
 
-<div align="center">
+### Purchase Success Animation
 
-| Layer | Technologies |
-|:------|:------------|
-| **Frontend** | React 18, Vite, Axios, SockJS, StompJS, Lucide React |
-| **Backend** | Java 17, Spring Boot 3.2, Spring Security, JWT |
-| **Database** | PostgreSQL 15+ |
-| **Cache** | Redis 7+ |
-| **Real-Time** | WebSocket (STOMP) |
-| **Build Tools** | Maven, npm/Vite |
-
-</div>
-
+After a successful purchase, `TicketPage` navigates to `/my-tickets` with `{ state: { confetti: true } }`. On mount, `MyTickets` checks `location.state?.confetti` and fires a 3-second `canvas-confetti` burst animation — then clears the flag via `window.history.replaceState` so it doesn't re-trigger on back navigation.
 
 ---
 
-## 📸 Screenshots
+## Backend
 
+### Security
 
+| Path Pattern | Access |
+|:-------------|:-------|
+| `/api/auth/**`, `/ws/**`, `/error` | Public |
+| `POST /api/partners/apply` | Public |
+| `GET /api/partners/my-proposals` | Authenticated |
+| `/api/admin/**` | `ROLE_ADMIN` |
+| `/api/stock/**` | Authenticated |
+| `/api/events/**` | Authenticated |
+| All others | Authenticated |
 
-### 🏠 Homepage
+Session policy is `STATELESS`. CSRF is disabled. CORS allows `http://localhost:5173` with credentials.
 
-<img src="./images/homepage1.png" alt="homepage1.png" width="400"/>
-<img src="./images/homepage2.png" alt="homepage2.png" width="400"/>
-<img src="./images/homepage3.png" alt="homepage3.png" width="400"/>
+### JWT
 
----
-
-### 🎫 Purchase Flow and Ticket
-
-<img src="./images/ticketpage.png" alt="ticketpage.png" width="400"/>
-<img src="./images/paymentwindow.png" alt="paymentwindow.png" width="400"/>
-<img src="./images/wallet.png" alt="wallet.png" width="400"/>
-<img src="./images/ticket.png" alt="ticket.png" width="400"/>
-
-
----
-
-### 📊 Admin Dashboard
-
-<img src="./images/admin-dashboard1.png" alt="admin-dashboard1.png" width="400"/>
-<img src="./images/admin-dashboard2.png" alt="admin-dashboard2.png" width="400"/>
-
----
-
-### 🎟️ Event Proposal
-
-<img src="./images/event-proposal.png" alt="event-proposal.png" width="400"/>
-
-
----
-
-### 📱 Support
-
-<img src="./images/support.png" alt="support.png" width="400"/>
-
-
----
-
-## 💻 Frontend Architecture
-
-### Core Pages
-
-| Page | Route | Purpose | Key Features |
-|:-----|:------|:--------|:------------|
-| **HomePage** | `/` | Event discovery | Redis-cached event loading |
-| **TicketPage** | `/tickets/:eventId` | Purchase flow | WebSockets, real-time stock, payment simulation |
-| **MyTickets** | `/my-tickets` | Digital wallet | PDF generation, QR embedding |
-| **AdminDashboard** | `/admin` | System control | Revenue stats, event management |
-| **HelpCenter** | `/help` | Support hub | Context-aware support |
-| **PartnerWithUs** | `/partner` | B2B portal | Multi-step proposal forms |
-
-### Reusable Components
-
-| Component | Function |
-|:----------|:---------|
-| **AdminRoute.jsx** | Protects admin routes using JWT role validation |
-| **Navbar.jsx** | Dynamic authentication state rendering |
-| **ProposalsTracker.jsx** | Partner proposal status tracking |
-| **VenueManager.jsx** | Admin venue configuration interface |
-| **AdminEventForm.jsx** | Event creation and editing forms |
-| **EventTable.jsx** | Sortable, filterable event management table |
-
-### Utilities
-
-- **`auth.js`** - JWT lifecycle management (storage, retrieval, validation)
-- **`authUtils.js`** - Token parsing and claims extraction
-- **`App.jsx`** - React Router configuration and route definitions
-- **`main.jsx`** - React application entry point
-
----
-
-## ⚙️ Backend Architecture
-
-### Authentication & Security Layer
-
-| Component | Responsibility |
-|:----------|:--------------|
-| **JwtAuthenticationFilter** | Validates JWT tokens on every request |
-| **SecurityConfiguration** | Defines public vs protected route access |
-| **JwtService** | Token generation and validation logic |
-| **CorsConfig** | Cross-origin resource sharing configuration |
-| **WebSocketConfig** | STOMP message broker configuration |
-| **AuthenticationController** | Login and registration API endpoints |
-| **AuthenticationService** | Business logic for authentication flows |
-
-### REST Controllers
-
-| Controller | Endpoints | Responsibility |
-|:-----------|:----------|:--------------|
-| **OrderController** | `/api/orders/**` | Ticket purchase and order management |
-| **EventController** | `/api/events/**` | Event inventory and details |
-| **TicketController** | `/api/tickets/**` | User ticket retrieval |
-| **AdminController** | `/api/admin/**` | System statistics and analytics |
-| **VenueController** | `/api/venues/**` | Venue CRUD operations |
-| **PartnerController** | `/api/partner/**` | Partner inquiry submission |
-| **AdminPartnerController** | `/api/admin/partners/**` | Partner proposal management |
+Tokens are HS256-signed and include `sub` (email), `role` (`CUSTOMER` or `ADMIN`), `iat`, and `exp`. Default expiry is 24 hours (configurable). `JwtAuthenticationFilter` validates the `Authorization: Bearer` header on every request and populates `SecurityContextHolder`.
 
 ### Service Layer
 
-| Service | Function |
-|:--------|:---------|
-| **StockService** | Atomic inventory locking and decrement operations |
-| **AdminService** | Revenue aggregation and user statistics |
-| **OrderService** | Order processing and validation |
-| **EventService** | Event business logic |
+**`StockService`** — owns all Redis operations and WebSocket broadcasts.
+
+**`AdminService`** — owns event lifecycle (create / update / delete) with Redis synchronization, and aggregates dashboard statistics.
 
 ---
 
-## 📦 Database & Data Model
-
-### Entity Relationship
+## Data Model
 
 ```
-User ──────┐
-           │
-           ├──► Order ──► TicketTier ──► Event ──► Venue
-           │
-           └──► Role (ADMIN/USER)
+User            id, name, email, password, role (CUSTOMER | ADMIN)
+
+Event           id, title, description, imageUrl, eventDate, eventTime,
+                category, venue_id → Venue
+                ticketTiers[] → TicketTier  (CascadeType.ALL)
+                galleryImages[] → @ElementCollection
+                reviews[] → Review
+                @Transient getAverageRating()
+
+TicketTier      id, tierName, price, availableStock (@Min 0), benefits, event_id
+
+Order           id, userId (email), event_id → Event, tierName,
+                quantity, totalAmount, orderTime
+
+Venue           id, name, address, city, totalCapacity, seatingMapUrl
+
+Review          id, userId, userName, rating (int, no backend constraint), comment,
+                reviewImages[] → @ElementCollection, event_id, createdAt
+
+PartnerInquiry  id, organizerName, businessEmail, eventCategory,
+                estimatedAttendance, contactNumber, city, eventDate,
+                eventProposal, submittedByEmail, submittedAt,
+                status (PENDING | REVIEWED | APPROVED)
 ```
 
-### Core Entities
+### Custom Repository Queries
 
-| Entity | Description | Key Fields |
-|:-------|:------------|:-----------|
-| **User** | System users | `id`, `email`, `password`, `firstName`, `lastName` |
-| **Event** | Ticketed events | `id`, `name`, `description`, `date`, `venue` |
-| **Order** | Ticket purchases | `id`, `user`, `event`, `ticketTier`, `quantity`, `totalPrice` |
-| **TicketTier** | Pricing tiers | `id`, `event`, `tierName`, `price`, `availableStock` |
-| **Venue** | Event locations | `id`, `name`, `address`, `city`, `capacity` |
-| **PartnerInquiry** | B2B proposals | `id`, `companyName`, `email`, `status`, `message` |
-| **Role** | User permissions | `id`, `name` (ADMIN, USER) |
+```java
+// Prevents LazyInitializationException — eagerly joins tiers and venue
+@Query("SELECT DISTINCT e FROM Event e LEFT JOIN FETCH e.ticketTiers LEFT JOIN FETCH e.venue")
+List<Event> findAllWithTiers();
 
-### Repositories (Spring Data JPA)
+// Case-insensitive fuzzy search across title and venue city
+@Query("SELECT e FROM Event e WHERE LOWER(e.title) LIKE LOWER(CONCAT('%',:query,'%')) " +
+       "OR LOWER(e.venue.city) LIKE LOWER(CONCAT('%',:query,'%'))")
+List<Event> searchEvents(@Param("query") String query);
 
-- `UserRepository`
-- `EventRepository`
-- `OrderRepository`
-- `TicketTierRepository`
-- `VenueRepository`
-- `PartnerRepository`
+// Eager-loads event + venue to populate OrderDto (fixes missing date/venue in wallet)
+@Query("SELECT o FROM Order o JOIN FETCH o.event e JOIN FETCH e.venue WHERE o.userId = :userId")
+List<Order> findByUserIdWithDetails(@Param("userId") String userId);
 
-### Data Transfer Objects (DTOs)
+// Null-safe aggregates for dashboard stats
+@Query("SELECT COALESCE(SUM(o.quantity), 0) FROM Order o")
+Long sumTotalTicketsSold();
 
-- **OrderDto** - Clean order data for API responses
-- **SystemStatsDto** - Aggregated analytics for admin dashboard
-- **StatusUpdateRequest** - Partner proposal status updates
-- **UserDto** - User information without sensitive data
+@Query("SELECT COALESCE(SUM(o.totalAmount), 0.0) FROM Order o")
+Double sumTotalRevenue();
+```
 
 ---
 
-## 🛠️ Installation & Setup
+## Redis Purchase Engine
+
+### Why `DECREMENT` instead of DB locks
+
+| Approach | Mechanism | Problem under high concurrency |
+|:---------|:----------|:-------------------------------|
+| Pessimistic lock (`SELECT FOR UPDATE`) | DB row locked per transaction | All requests queue at the DB |
+| Optimistic lock (version field) | Retry on version mismatch | Retry storms under contention |
+| **Redis `DECREMENT`** ✅ | Single-threaded O(1) command | No contention; DB only touched for winners |
+
+### `processPurchase()` — annotated flow
+
+```java
+@Transactional(rollbackFor = Exception.class)
+public boolean processPurchase(Long eventId, Long tierId, String userId, int quantity) {
+    String stockKey = String.format("event:%d:tier:%d", eventId, tierId);
+
+    // 1. Atomic Redis decrement — no race condition possible
+    Long remaining = redisTemplate.opsForValue().decrement(stockKey, quantity);
+
+    if (remaining != null && remaining >= 0) {
+        try {
+            // 2. Fetch entities from DB
+            TicketTier tier = ticketTierRepository.findById(tierId).orElseThrow(...);
+            Event event    = eventRepository.findById(eventId).orElseThrow(...);
+
+            // 3. Sync tier stock in PostgreSQL
+            tier.setAvailableStock(remaining.intValue());
+            ticketTierRepository.saveAndFlush(tier);
+
+            // 4. Persist order record
+            orderRepository.save(Order.builder()
+                .userId(userId).event(event).tierName(tier.getTierName())
+                .quantity(quantity).totalAmount(tier.getPrice() * quantity)
+                .orderTime(LocalDateTime.now()).build());
+
+            // 5. Push updated stock to all WebSocket subscribers
+            broadcastStockUpdate(eventId, tierId, remaining);
+            return true;
+
+        } catch (Exception e) {
+            // 6. DB failed — restore Redis so inventory is not lost
+            redisTemplate.opsForValue().increment(stockKey, quantity);
+            throw new RuntimeException("DB write failed. Redis restored.", e);
+        }
+    } else {
+        // 7. Over-decremented (sold out) — restore and reject
+        redisTemplate.opsForValue().increment(stockKey, quantity);
+        return false;
+    }
+}
+```
+
+### `initializeStock()` — null-safe initialization
+
+```java
+public void initializeStock(Long eventId, Long tierId, int amount) {
+    if (eventId == null || tierId == null) return; // Prevents "event:null:tier:null" keys
+    String key = String.format("event:%d:tier:%d", eventId, tierId);
+    redisTemplate.opsForValue().set(key, String.valueOf(amount));
+    broadcastStockUpdate(eventId, tierId, (long) amount);
+}
+```
+
+### Event Lifecycle → Redis Sync
+
+| Operation | Flow |
+|:----------|:-----|
+| **Create** | `saveAndFlush()` (generates IDs) → `initializeStock()` per tier → `syncStockToRedis()` (second pass to guarantee correctness) |
+| **Update** | Merge fields/tiers/venue, re-link tier parent references → `saveAndFlush()` → `initializeStock()` per tier |
+| **Delete** | `redisTemplate.delete()` per tier key → `eventRepository.delete()` (JPA cascade handles orders/tiers/reviews) |
+
+The `saveAndFlush()` + `syncStockToRedis()` two-pass pattern ensures JPA has generated real IDs before Redis is written, preventing the null-key cache poisoning bug.
+
+---
+
+## API Reference
+
+### Auth
+
+| Method | Endpoint | Auth | Body / Response |
+|:-------|:---------|:-----|:----------------|
+| POST | `/api/auth/register` | Public | `{ name, email, password }` → `{ token, role, name }` |
+| POST | `/api/auth/authenticate` | Public | `{ email, password }` → `{ token, role, name }` |
+
+### Events — `/api/events`
+
+| Method | Endpoint | Auth |
+|:-------|:---------|:-----|
+| GET | `/api/events` | User |
+| GET | `/api/events/{id}` | User |
+| GET | `/api/events/search?q=` | User |
+| GET | `/api/events/past` | User |
+| POST | `/api/events/create` | Admin |
+| PUT | `/api/events/{id}` | Admin |
+| DELETE | `/api/events/{id}` | Admin |
+
+### Stock / Tickets — `/api/stock`
+
+| Method | Endpoint | Auth | Notes |
+|:-------|:---------|:-----|:------|
+| POST | `/api/stock/purchase` | User | `{ eventId, tierId, quantity }` |
+| GET | `/api/stock/my-tickets` | User | Returns enriched `OrderDto[]` with event + venue details |
+| GET | `/api/stock/count/{eventId}/{tierId}` | User | Current Redis stock count |
+
+### Orders — `/api/orders`
+
+| Method | Endpoint | Auth |
+|:-------|:---------|:-----|
+| GET | `/api/orders/my-orders` | User |
+
+### Venues — `/api/venues`
+
+| Method | Endpoint | Auth |
+|:-------|:---------|:-----|
+| GET | `/api/venues` | User |
+| GET | `/api/venues/{id}` | User |
+| POST | `/api/venues` | Admin |
+| PUT | `/api/venues/{id}` | Admin |
+| DELETE | `/api/venues/{id}` | Admin |
+
+### Reviews — `/api/reviews`
+
+| Method | Endpoint | Auth | Notes |
+|:-------|:---------|:-----|:------|
+| POST | `/api/reviews/{eventId}` | User | |
+| GET | `/api/reviews/{eventId}` | User | Sorted newest first |
+| PUT | `/api/reviews/{reviewId}` | User | Owner only (403 otherwise) |
+| DELETE | `/api/reviews/{reviewId}` | User | Owner only (403 otherwise) |
+
+### Partners
+
+| Method | Endpoint | Auth |
+|:-------|:---------|:-----|
+| POST | `/api/partners/apply` | Public |
+| GET | `/api/partners/my-proposals?email=` | User |
+| GET | `/api/admin/partners` | Admin |
+| PUT | `/api/admin/partners/{id}/status` | Admin |
+
+### Admin — `/api/admin`
+
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| GET | `/api/admin/stats` | `{ totalUsers, totalTicketsSold, totalRevenue }` |
+| GET | `/api/admin/orders` | All orders as enriched `OrderDto[]` |
+| GET | `/api/admin/users` | All users as `UserDto[]` |
+| DELETE | `/api/admin/users/{id}` | Delete user |
+| POST | `/api/admin/sync-stock` | Re-sync all Redis inventory from PostgreSQL |
+| POST | `/api/admin/init` | Reset a specific tier's Redis stock |
+| GET / POST / DELETE | `/api/admin/venues` | Venue management |
+
+### WebSocket
+
+Connect to `ws://localhost:8080/ws` via SockJS, then subscribe:
+
+```
+/topic/stock/{eventId}   →  { "tierId": 3, "remaining": 41 }
+```
+
+---
+
+## Setup & Installation
 
 ### Prerequisites
 
-Ensure you have the following installed:
-
-- **Node.js** v18 or higher
-- **Java** 17 or higher
-- **Maven** 3.8+
-- **PostgreSQL** 15+ (running on port 5432)
-- **Redis** 7+ (running on port 6379)
+- Java 17+
+- Node.js 18+
+- PostgreSQL 15+ (port 5432)
+- Redis 7+ (port 6379)
+- Maven (wrapper included)
 
 ---
 
-### Backend Setup (Spring Boot)
+### Backend
 
-#### 1. Navigate to backend directory
-```bash
-cd backend
-```
-
-#### 2. Configure Database & Redis
-
-Edit `src/main/resources/application.properties`:
-
-```properties
-# Application Name
-spring.application.name=TicketBlitz
-
-# Database Configuration
-spring.datasource.url=jdbc:postgresql://localhost:5432/ticketblitz
-spring.datasource.username=postgres
-spring.datasource.password=your_password_here
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-
-# Redis Configuration
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-
-# Server Configuration
-server.port=8080
-
-# JWT Configuration
-# ⚠️ IMPORTANT: Use environment variables in production!
-application.security.jwt.secret-key=your_256_bit_secret_key_here
-application.security.jwt.expiration=86400000
-
-# Logging Configuration
-logging.level.org.hibernate.SQL=DEBUG
-logging.level.org.springframework.orm.jpa=DEBUG
-```
-
-#### 3. Create PostgreSQL Database
-
+**1. Create the database**
 ```sql
 CREATE DATABASE ticketblitz;
 ```
 
-#### 4. Start Redis Server
+**2. Configure `backend/src/main/resources/application.properties`**
+```properties
+spring.application.name=TicketBlitz
 
-**Windows:**
-```bash
-redis-server
+# PostgreSQL
+spring.datasource.url=jdbc:postgresql://localhost:5432/ticketblitz
+spring.datasource.username=postgres
+spring.datasource.password=YOUR_PASSWORD
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+
+# Redis
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+spring.data.redis.lettuce.pool.max-active=20
+spring.data.redis.lettuce.pool.max-idle=10
+spring.data.redis.lettuce.pool.min-idle=5
+
+# HikariCP
+spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.minimum-idle=5
+
+spring.transaction.default-timeout=10
+server.port=8080
+
+# JWT — use environment variables in production
+application.security.jwt.secret-key=YOUR_256_BIT_BASE64_SECRET
+application.security.jwt.expiration=86400000
+
+# Logging
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.springframework.orm.jpa=DEBUG
 ```
 
-**Linux/Mac:**
+**3. Start Redis**
 ```bash
-sudo systemctl start redis
-# or
 redis-server
+
+# Verify
+redis-cli ping   # → PONG
 ```
 
-#### 5. Run the Application
-
+**4. Run the backend**
 ```bash
+# Linux/Mac
 ./mvnw spring-boot:run
-```
 
-**Windows:**
-```bash
+# Windows
 mvnw.cmd spring-boot:run
 ```
 
-#### 6. Verify Backend
+On startup, the `CommandLineRunner` in `BackendApplication` writes and reads a test key to confirm Redis connectivity:
+```
+⚡ TESTING REDIS CONNECTION...
+⚡ REDIS RESPONSE: TicketBlitz is Live!
+```
 
-Backend should now be running at:
-```
-http://localhost:8080
-```
-
-Test API endpoint:
-```
-http://localhost:8080/api/events
-```
+Backend: `http://localhost:8080`
 
 ---
 
-### Frontend Setup (React + Vite)
+### Frontend
 
-#### 1. Navigate to frontend directory
 ```bash
 cd frontend
-```
-
-#### 2. Install dependencies
-```bash
 npm install
-```
-
-#### 3. Configure Environment (Optional)
-
-Create `.env` file if needed:
-```env
-VITE_API_URL=http://localhost:8080
-```
-
-#### 4. Start development server
-```bash
 npm run dev
 ```
 
-#### 5. Access the application
-
-Frontend will be available at:
-```
-http://localhost:5173
-```
+Frontend: `http://localhost:5173`
 
 ---
 
-## ✅ Verification Steps
+### Creating an Admin Account
 
-Follow these steps to ensure everything is configured correctly:
+Register normally via the UI, then update the role in the database:
 
-### 1. Backend Health Check
-```bash
-curl http://localhost:8080/api/events
+```sql
+UPDATE users SET role = 'ADMIN' WHERE email = 'your@email.com';
 ```
-Should return JSON array of events.
 
-### 2. Redis Connection
-```bash
-redis-cli ping
-```
-Should return `PONG`.
+Log out and back in to receive a new JWT with the `ADMIN` claim embedded.
 
-### 3. PostgreSQL Connection
+---
+
+### Verification
+
 ```bash
+redis-cli ping                           # PONG
+curl http://localhost:8080/api/events    # [] or event array
 psql -U postgres -d ticketblitz -c "SELECT version();"
 ```
-Should display PostgreSQL version.
 
-### 4. User Registration Flow
-1. Navigate to `http://localhost:5173`
-2. Register a new account
-3. Check browser's `localStorage` for JWT token
-4. Verify token is sent in subsequent API requests (check Network tab)
-
-### 5. Real-Time Updates Test
-1. Open the same event in **two different browsers**
-2. Purchase a ticket in browser 1
-3. Verify stock updates automatically in browser 2 (no refresh needed)
-
-### 6. WebSocket Connection
-1. Open browser console
-2. Look for WebSocket connection logs
-3. Verify STOMP handshake success
+**Real-time test:** Open the same event in two browser tabs. Purchase a ticket in one and verify the stock counter updates in the other without refreshing.
 
 ---
 
-## 🎯 Demo Walkthrough
+## Testing
 
-### Complete User Journey
+Two integration tests are included. Both require live PostgreSQL and Redis instances. Data is set up in `@BeforeEach` and cleaned with `deleteAll()` before each run.
 
-#### 1. **Account Registration**
-- Navigate to registration page
-- Fill in user details (name, email, password)
-- Submit form
-- JWT token automatically stored in localStorage
+### `StockServiceStressTest` — service layer
 
-#### 2. **Browse Events**
-- Homepage displays all available events (Redis-cached)
-- Filter by category, date, or venue
-- Real-time availability displayed
+1,000 concurrent threads compete for 1 ticket via `StockService.processPurchase()` directly.
 
-#### 3. **Concurrent Booking Simulation**
-- Open same event in two browser windows
-- Attempt simultaneous purchases
-- Observe:
-  - Real-time stock decrements
-  - Transaction locking prevents double-booking
-  - One purchase succeeds, other shows updated availability
-
-#### 4. **Purchase Flow**
-- Select ticket tier and quantity
-- Click "Purchase Tickets"
-- Payment simulation begins:
-  - UI locks for 2 seconds
-  - Unique transaction ID generated
-  - Transaction ID validation
-- Order confirmation displayed
-
-#### 5. **Download E-Ticket**
-- Navigate to "My Tickets"
-- Click "Download Ticket" on purchased order
-- PDF generated with:
-  - Event details
-  - QR code (scannable)
-  - Order information
-  - High-quality branding
-
-#### 6. **Help Center**
-- Navigate to Help Center
-- User context automatically injected into support emails
-- Personalized assistance experience
-
----
-
-## 🚀 Performance & Reliability
-
-### Performance Optimizations
-
-| Technique | Impact | Implementation |
-|:----------|:-------|:--------------|
-| **Redis Caching** | 70%+ DB load reduction | Event data, session storage |
-| **WebSockets** | 95% less network overhead | Real-time stock updates |
-| **Client-Side PDF** | Reduced server CPU | Browser-based generation |
-| **DB Transactions** | Zero race conditions | `@Transactional` locking |
-| **Rate Limiting** | DDoS protection | Redis atomic counters |
-
-### Performance Metrics
-
-- ⚡ **Average API Response:** <100ms
-- 🚀 **Cached Event Listing:** <50ms
-- 📊 **Concurrent Users:** 10,000+
-- 🎯 **Uptime Target:** 99.9%
-
-### Concurrency & Reliability
-
-#### Stock Locking Mechanism
 ```java
-@Transactional(isolation = Isolation.SERIALIZABLE)
-public synchronized void decrementStock(Long tierId, int quantity) {
-    // Atomic read-modify-write operation
-    // Prevents phantom bookings
-}
+final int TOTAL_STOCK      = 1;
+final int CONCURRENT_USERS = 1000;
 ```
 
-#### WebSocket Broadcasting
-```javascript
-stompClient.subscribe('/topic/stock/' + eventId, (message) => {
-    // Real-time stock updates
-    updateAvailableTickets(JSON.parse(message.body));
-});
+Threads are held on a `CountDownLatch` and released simultaneously. Assertions:
+
+```java
+assertEquals(1,    successCount.get());       // exactly one winner
+assertEquals(999,  failCount.get());          // everyone else rejected
+assertEquals(1,    orderRepository.count());  // one order in DB
+assertEquals(0,    finalDbStock);             // tier stock at zero
+```
+
+### `ControllerLoadTest` — HTTP layer
+
+100 concurrent requests to `POST /api/stock/purchase` via MockMvc with full Spring Security context, against an event with 5 tickets.
+
+```java
+assertEquals(5,  successCount.get());   // five HTTP 200 responses
+assertEquals(95, failCount.get());      // ninety-five HTTP 400 responses
+```
+
+### Running
+
+```bash
+cd backend
+
+./mvnw test                                    # all tests
+./mvnw test -Dtest=StockServiceStressTest
+./mvnw test -Dtest=ControllerLoadTest
 ```
 
 ---
 
-## 🔒 Security Design
+## Screenshots
 
-### Authentication & Authorization
+### Homepage
+<img src="./images/homepage1.png" width="400"/> <img src="./images/homepage2.png" width="400"/>
+<img src="./images/homepage3.png" width="400"/>
 
-| Security Feature | Implementation |
-|:----------------|:---------------|
-| **Password Hashing** | BCrypt with salt |
-| **JWT Authentication** | Stateless token-based auth |
-| **Token Blacklist** | Redis-based logout tracking |
-| **CORS Protection** | Whitelist-based origin validation |
-| **Rate Limiting** | IP-based request throttling |
-| **Input Validation** | Spring Validator annotations |
-| **SQL Injection Prevention** | JPA parameterized queries |
+### Purchase Flow & E-Ticket
+<img src="./images/ticketpage.png" width="400"/> <img src="./images/paymentwindow.png" width="400"/>
+<img src="./images/wallet.png" width="400"/> <img src="./images/ticket.png" width="400"/>
 
-### Best Practices
+### Admin Dashboard
+<img src="./images/admin-dashboard1.png" width="400"/> <img src="./images/admin-dashboard2.png" width="400"/>
 
-- ✅ Passwords **never** stored in plain text
-- ✅ JWT tokens have configurable expiration
-- ✅ Secrets managed via environment variables (production)
-- ✅ All endpoints validated and sanitized
-- ✅ HTTPS enforced in production
-- ✅ CSRF protection enabled
-
----
-
-
-## 📄 License
-
-This project is built for educational and portfolio purposes.
-
----
-
-## 🙏 Acknowledgments
-
-This project was built with:
-- **Passion** for solving real-world engineering challenges
-- **Curiosity** about scalable system design
-- **Commitment** to high-performance software engineering
-
-Special thanks to the open-source community for providing the excellent tools and frameworks that made this possible.
+### Partner Portal & Support
+<img src="./images/event-proposal.png" width="400"/> <img src="./images/support.png" width="400"/>
 
 ---
 
 <div align="center">
 
-**Built with ❤️ using Spring Boot & React**
-
-⭐ Star this repository if you found it helpful!
-
-<br/>
-
-© 2026 All Rights Reserved | Yogesh Shende
+Built with Spring Boot  & React git &nbsp;·&nbsp; © 2026 Yogesh Shende
 
 </div>
