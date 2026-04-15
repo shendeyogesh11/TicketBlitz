@@ -289,12 +289,20 @@ const TicketPage = () => {
                     <div style={lightboxContent} onClick={e => e.stopPropagation()}>
                         <button style={closeBtn} onClick={() => setShowMapLightbox(false)}>×</button>
                         <h3 style={mapHeader}>{event.venue?.name} — Official Seating Chart</h3>
-                        <img 
-                            src={event.venue?.seatingMapUrl || "https://images.unsplash.com/photo-1504450758481-7338eba7524a"} 
-                            alt="Seating Map" 
-                            style={mapImageLarge} 
-                        />
-                        <p style={mapFooter}>Examine your tier placement before confirming.</p>
+                        {event.venue?.seatingMapUrl && event.venue.seatingMapUrl.startsWith("http") ? (
+                    <img 
+                        src={event.venue.seatingMapUrl} 
+                        alt="Seating Map" 
+                        style={mapImageLarge} 
+                    />
+                ) : (
+                    <div style={noMapContainer}>
+                        <p style={noMapText}>
+                            {event.venue?.seatingMapUrl || "No specific seating map available for this event."}
+                        </p>
+                    </div>
+                )}
+                        <p style={mapFooter}>N/A (Open lawn venue; seating is fully customizable per event)</p>
                     </div>
                 </div>
             )}
@@ -365,5 +373,8 @@ const mapHeader = { fontSize: '20px', fontWeight: '900', color: '#111', marginBo
 const mapImageLarge = { width: '100%', maxHeight: '60vh', borderRadius: '20px', objectFit: 'contain', background: '#f9f9f9', padding: '10px' };
 const mapFooter = { marginTop: '20px', fontSize: '13px', color: '#888', fontWeight: '500' };
 const loaderStyle = { display: 'flex', flexDirection: 'column', gap: '20px', justifyContent: 'center', alignItems: 'center', height: '80vh', fontWeight: '800', color: '#6f42c1' };
+
+const noMapContainer = { padding: '40px 20px', backgroundColor: '#f8f9fa', borderRadius: '8px', textAlign: 'center', margin: '20px 0', border: '1px dashed #ccc' };
+const noMapText = { color: '#6c757d', fontSize: '1.1rem', fontWeight: '500', lineHeight: '1.5' };
 
 export default TicketPage;
